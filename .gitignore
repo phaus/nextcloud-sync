@@ -1,0 +1,38 @@
+# Binaries
+bin/
+agent
+agent-*
+
+# Build artifacts
+*.exe
+*.so
+*.dylib
+
+# Test artifacts
+coverage.out
+coverage.html
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Config files (for local development)
+.nextcloud-sync.json
+config.json
+
+# Log files
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Vendor directory
+vendor/
