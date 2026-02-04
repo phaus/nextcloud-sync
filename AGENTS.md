@@ -30,6 +30,7 @@ go test -v ./internal/config
 go test -v ./internal/auth
 go test -v ./internal/webdav
 go test -v ./internal/sync
+go test -v ./internal/utils
 go test -v ./pkg/exclude
 
 # Run a single test function
