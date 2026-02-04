@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 )
 
@@ -10,11 +11,29 @@ var (
 )
 
 func main() {
-	if len(os.Args) > 1 && os.Args[1] == "--version" {
-		fmt.Printf("nextcloud-sync %s\n", version)
-		os.Exit(0)
+	// Parse and validate command-line arguments
+	if err := ParseAndValidate(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
 
-	fmt.Println("Nextcloud Sync CLI - Development Version")
-	fmt.Println("Use --version for version information")
+	// Get sync arguments
+	source, target, _ := GetSyncArgs()
+
+	// Setup logging based on verbose flag
+	setupLogging()
+
+	// Handle sync command
+	if err := handleSync([]string{source, target}); err != nil {
+		log.Fatalf("Sync failed: %v", err)
+	}
+}
+
+// setupLogging configures logging based on flags
+func setupLogging() {
+	if IsVerbose() {
+		log.SetFlags(log.LstdFlags | log.Lshortfile)
+	} else {
+		log.SetFlags(log.LstdFlags)
+	}
 }

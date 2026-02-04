@@ -9,13 +9,13 @@ help: ## Show this help message
 
 # Build targets
 build: ## Build the main binary
-	go build -ldflags "-X main.version=dev" -o bin/agent cmd/sync/main.go
+	go build -ldflags "-X main.version=dev" -o bin/agent cmd/sync/*.go
 
 build-all: ## Build for all platforms
-	GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=dev" -o bin/agent-linux-amd64 cmd/sync/main.go
-	GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=dev" -o bin/agent-darwin-amd64 cmd/sync/main.go
-	GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=dev" -o bin/agent-darwin-arm64 cmd/sync/main.go
-	GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=dev" -o bin/agent-windows-amd64.exe cmd/sync/main.go
+	GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=dev" -o bin/agent-linux-amd64 cmd/sync/*.go
+	GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=dev" -o bin/agent-darwin-amd64 cmd/sync/*.go
+	GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=dev" -o bin/agent-darwin-arm64 cmd/sync/*.go
+	GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=dev" -o bin/agent-windows-amd64.exe cmd/sync/*.go
 
 install: build ## Install the binary to /usr/local/bin
 	sudo cp bin/agent /usr/local/bin/
@@ -48,7 +48,7 @@ clean: ## Clean build artifacts
 
 # Development targets
 dev: ## Build and run in development mode
-	go run -ldflags "-X main.version=dev" cmd/sync/main.go
+	go run -ldflags "-X main.version=dev" cmd/sync/*.go
 
 deps: ## Download dependencies
 	go mod download
