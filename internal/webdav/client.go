@@ -217,9 +217,24 @@ func (c *WebDAVClient) ListDirectory(ctx context.Context, dirPath string) ([]*We
 	}
 	defer resp.Body.Close()
 
-	// Parse XML response (to be implemented in responses.go)
-	// For now, return empty slice as placeholder
-	return []*WebDAVFile{}, nil
+	// Parse XML response
+	multistatus, err := parseMultistatusResponse(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse PROPFIND response: %w", err)
+	}
+
+	// Validate response
+	if err := validateMultistatus(multistatus); err != nil {
+		return nil, fmt.Errorf("invalid PROPFIND response: %w", err)
+	}
+
+	// Convert to WebDAVFile slice
+	files, err := parseWebDAVFiles(multistatus, url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse WebDAV files: %w", err)
+	}
+
+	return files, nil
 }
 
 // GetProperties implements Client.GetProperties
@@ -257,9 +272,24 @@ func (c *WebDAVClient) GetProperties(ctx context.Context, filePath string) (*Web
 	}
 	defer resp.Body.Close()
 
-	// Parse XML response (to be implemented in responses.go)
-	// For now, return empty properties as placeholder
-	return &WebDAVProperties{}, nil
+	// Parse XML response
+	multistatus, err := parseMultistatusResponse(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse PROPFIND response: %w", err)
+	}
+
+	// Validate response
+	if err := validateMultistatus(multistatus); err != nil {
+		return nil, fmt.Errorf("invalid PROPFIND response: %w", err)
+	}
+
+	// Convert to WebDAVProperties
+	properties, err := parseWebDAVProperties(multistatus)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse WebDAV properties: %w", err)
+	}
+
+	return properties, nil
 }
 
 // DownloadFile implements Client.DownloadFile

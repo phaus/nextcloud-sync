@@ -119,7 +119,7 @@ nextcloud-sync/
 #### 2.2 WebDAV Client Foundation (`internal/webdav/`)
 - [x] Define WebDAV client interface (`client.go`)
 - [ ] Implement HTTP request builders (`requests.go`)
-- [ ] Add response parsing (`responses.go`)
+- [x] Add response parsing (`responses.go`)
 - [ ] Implement basic PROPFIND operations (`properties.go`)
 - [ ] Add WebDAV error handling (`errors.go`)
 
