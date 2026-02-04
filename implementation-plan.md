@@ -171,9 +171,9 @@ nextcloud-sync/
 ### Phase 4: Advanced Features (Week 7-8)
 
 #### 4.1 Bidirectional Synchronization (`internal/sync/`)
-- [ ] Implement bidirectional sync logic (`engine.go`)
-- [ ] Add change direction detection
-- [ ] Handle merge scenarios
+- [x] Implement bidirectional sync logic (`engine.go`)
+- [x] Add change direction detection
+- [x] Handle merge scenarios
 - [ ] Optimize for minimal data transfer
 
 **Source**: User requirement for "Bidirectional sync"

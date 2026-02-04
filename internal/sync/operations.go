@@ -39,26 +39,34 @@ func (e *OperationExecutor) ExecuteOperation(op *SyncOperation) error {
 	case ChangeCreate:
 		if op.Direction == LocalToRemote {
 			return e.uploadFile(op.SourcePath, op.TargetPath)
-		} else {
+		} else if op.Direction == RemoteToLocal {
 			return e.downloadFile(op.SourcePath, op.TargetPath)
+		} else {
+			return fmt.Errorf("unsupported direction for create operation: %v", op.Direction)
 		}
 	case ChangeUpdate:
 		if op.Direction == LocalToRemote {
 			return e.uploadFile(op.SourcePath, op.TargetPath)
-		} else {
+		} else if op.Direction == RemoteToLocal {
 			return e.downloadFile(op.SourcePath, op.TargetPath)
+		} else {
+			return fmt.Errorf("unsupported direction for update operation: %v", op.Direction)
 		}
 	case ChangeDelete:
 		if op.Direction == LocalToRemote {
 			return e.deleteLocalFile(op.SourcePath)
+		} else if op.Direction == RemoteToLocal {
+			return e.deleteRemoteFile(op.SourcePath)
 		} else {
-			return e.deleteRemoteFile(op.TargetPath)
+			return fmt.Errorf("unsupported direction for delete operation: %v", op.Direction)
 		}
 	case ChangeMove:
 		if op.Direction == LocalToRemote {
 			return e.moveLocalFile(op.SourcePath, op.TargetPath)
-		} else {
+		} else if op.Direction == RemoteToLocal {
 			return e.moveRemoteFile(op.SourcePath, op.TargetPath)
+		} else {
+			return fmt.Errorf("unsupported direction for move operation: %v", op.Direction)
 		}
 	default:
 		return fmt.Errorf("unsupported operation type: %v", op.Type)
@@ -305,10 +313,21 @@ func (e *OperationExecutor) PlanOperations(changes []*Change) (*SyncPlan, error)
 			ID:           fmt.Sprintf("%s_%d", change.Type.String(), time.Now().UnixNano()),
 			Type:         change.Type,
 			Direction:    change.Direction,
-			SourcePath:   change.LocalPath,
-			TargetPath:   change.RemotePath,
 			Priority:     change.Priority,
 			Dependencies: make([]string, 0),
+		}
+
+		// Set source and target paths based on direction
+		if change.Direction == LocalToRemote {
+			op.SourcePath = change.LocalPath
+			op.TargetPath = change.RemotePath
+		} else if change.Direction == RemoteToLocal {
+			op.SourcePath = change.RemotePath
+			op.TargetPath = change.LocalPath
+		} else {
+			// Default for other cases
+			op.SourcePath = change.LocalPath
+			op.TargetPath = change.RemotePath
 		}
 
 		// Set size and update totals
@@ -459,6 +478,108 @@ func (e *OperationExecutor) ExecutePlan(plan *SyncPlan) (*SyncResult, error) {
 	result.Success = len(result.Errors) == 0
 
 	return result, nil
+}
+
+// planChange creates operations for a single change
+func (e *OperationExecutor) planChange(change *Change) ([]*SyncOperation, error) {
+	var operations []*SyncOperation
+
+	// Skip if this is a conflict
+	if change.IsConflict() {
+		return operations, nil
+	}
+
+	// Create operation based on change type and direction
+	op := &SyncOperation{
+		ID:           fmt.Sprintf("%s_%d", change.Type.String(), time.Now().UnixNano()),
+		Type:         change.Type,
+		Direction:    change.Direction,
+		SourcePath:   change.LocalPath,
+		TargetPath:   change.RemotePath,
+		Priority:     change.Priority,
+		Dependencies: make([]string, 0),
+	}
+
+	// Set size based on direction and available metadata
+	if change.Direction == LocalToRemote && change.LocalMeta != nil {
+		op.Size = change.LocalMeta.Size
+	} else if change.Direction == RemoteToLocal && change.RemoteMeta != nil {
+		op.Size = change.RemoteMeta.Size
+	}
+
+	// Handle bidirectional operations
+	if change.Direction == Bidirectional {
+		// For bidirectional sync, we need to determine the actual direction
+		// based on which side is newer (source-wins policy)
+		if change.LocalMeta != nil && change.RemoteMeta != nil {
+			if change.LocalMeta.IsNewer(change.RemoteMeta) {
+				op.Direction = LocalToRemote
+				op.SourcePath = change.LocalPath
+				op.TargetPath = change.RemotePath
+				op.Size = change.LocalMeta.Size
+			} else {
+				op.Direction = RemoteToLocal
+				op.SourcePath = change.RemotePath
+				op.TargetPath = change.LocalPath
+				op.Size = change.RemoteMeta.Size
+			}
+		} else if change.LocalMeta != nil {
+			// Only local exists, upload to remote
+			op.Direction = LocalToRemote
+			op.Size = change.LocalMeta.Size
+		} else if change.RemoteMeta != nil {
+			// Only remote exists, download to local
+			op.Direction = RemoteToLocal
+			op.Size = change.RemoteMeta.Size
+		}
+	}
+
+	// Add directory creation dependencies if needed
+	if change.Type == ChangeCreate || change.Type == ChangeUpdate {
+		if op.Direction == LocalToRemote && op.TargetPath != "" {
+			parentDir := filepath.Dir(op.TargetPath)
+			if parentDir != "." && parentDir != "/" {
+				parentOpID := e.findOrCreateDirectoryOpForPlan(nil, parentDir)
+				if parentOpID != "" {
+					op.Dependencies = append(op.Dependencies, parentOpID)
+				}
+			}
+		}
+	}
+
+	operations = append(operations, op)
+	return operations, nil
+}
+
+// findOrCreateDirectoryOpForPlan finds or creates a directory operation for a plan
+func (e *OperationExecutor) findOrCreateDirectoryOpForPlan(plan *SyncPlan, dirPath string) string {
+	// If we have a plan, check existing operations
+	if plan != nil {
+		for _, op := range plan.Operations {
+			if op.Type == ChangeCreate && op.TargetPath == dirPath {
+				return op.ID
+			}
+		}
+	}
+
+	// Generate a unique ID for directory creation
+	dirOpID := fmt.Sprintf("mkdir_%s_%d", dirPath, time.Now().UnixNano())
+
+	// If we have a plan, add the operation to it
+	if plan != nil {
+		dirOp := &SyncOperation{
+			ID:         dirOpID,
+			Type:       ChangeCreate,
+			Direction:  LocalToRemote,
+			SourcePath: "",
+			TargetPath: dirPath,
+			Size:       0,
+			Priority:   100, // High priority for directories
+		}
+		plan.Operations = append(plan.Operations, dirOp)
+	}
+
+	return dirOpID
 }
 
 // isOperationCompleted checks if an operation (by ID) has been completed

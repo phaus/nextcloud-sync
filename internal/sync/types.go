@@ -95,6 +95,7 @@ type SyncConfig struct {
 	Source          string          `json:"source"`
 	Target          string          `json:"target"`
 	Direction       SyncDirection   `json:"direction"`
+	Bidirectional   bool            `json:"bidirectional"` // Convenience field for bidirectional sync
 	DryRun          bool            `json:"dry_run"`
 	Force           bool            `json:"force"`
 	ExcludePatterns []string        `json:"exclude_patterns,omitempty"`
@@ -145,6 +146,7 @@ type SyncResult struct {
 	TotalSize       int64         `json:"total_size"`
 	TransferredSize int64         `json:"transferred_size"`
 	Duration        time.Duration `json:"duration"`
+	DryRun          bool          `json:"dry_run"`
 	Errors          []string      `json:"errors,omitempty"`
 	Warnings        []string      `json:"warnings,omitempty"`
 	SkippedFiles    []string      `json:"skipped_files,omitempty"`
@@ -154,6 +156,7 @@ type SyncResult struct {
 	DeletedFiles    []string      `json:"deleted_files,omitempty"`
 	StartTime       time.Time     `json:"start_time"`
 	EndTime         time.Time     `json:"end_time"`
+	Bidirectional   bool          `json:"bidirectional"` // Indicates if this was a bidirectional sync
 }
 
 // FileTree represents a tree structure for file metadata
@@ -285,6 +288,14 @@ func (c Change) String() string {
 	}
 
 	return typeStr + " " + dirStr + " " + c.Reason
+}
+
+// Path returns the primary path for this change
+func (c *Change) Path() string {
+	if c.LocalPath != "" {
+		return c.LocalPath
+	}
+	return c.RemotePath
 }
 
 // String returns a string representation of the ChangeType
