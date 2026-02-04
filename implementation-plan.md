@@ -82,6 +82,7 @@ nextcloud-sync/
 - [x] Set up Makefile with basic targets
 - [ ] Configure GitHub Actions for CI/CD
 - [x] Create README.md with project overview
+- [x] Configure GitHub Actions for CI/CD
 
 **Source**: `specs/deployment.md` - Build System Requirements
 

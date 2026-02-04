@@ -343,6 +343,15 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ### Current Status
 The basic sync operations are now implemented with file upload/download, directory management, and operation planning. Large file support with chunked uploads has been implemented to handle files efficiently. Next phases include performance optimization and advanced error handling.
 
+### CI/CD Pipeline
+The project includes a comprehensive GitHub Actions CI/CD pipeline that provides:
+- **Multi-version testing**: Tests on Go 1.19, 1.20, and 1.21
+- **Cross-platform builds**: Linux, macOS, and Windows binaries
+- **Code quality checks**: Linting with golangci-lint and code formatting
+- **Security scanning**: Automated vulnerability scanning with Gosec and Trivy
+- **Coverage reporting**: Test coverage uploaded to Codecov
+- **Release automation**: Automatic release asset generation and publishing
+
 ## Changelog
 
 ### Version 1.0.0 (Upcoming)
