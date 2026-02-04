@@ -124,13 +124,14 @@ func TestSyncEngine_CreateExcludeMatcher(t *testing.T) {
 			expectPatterns: []string{".DS_Store", "Thumbs.db", "*.tmp", "*.log", "temp/"},
 		},
 		{
-			name: "invalid pattern",
+			name: "literal pattern with special chars",
 			config: &SyncConfig{
 				Source:          "/test/source",
 				Target:          "https://cloud.example.com/files/test",
 				ExcludePatterns: []string{"[invalid"},
 			},
-			expectError: true,
+			expectError:    false,
+			expectPatterns: []string{".DS_Store", "Thumbs.db", "*.tmp", "[invalid"},
 		},
 	}
 

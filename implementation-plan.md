@@ -129,7 +129,7 @@ nextcloud-sync/
 #### 2.3 File Exclusion System (`pkg/exclude/`)
 - [x] Implement gitignore-style pattern parsing (`patterns.go`)
 - [x] Add pattern matching logic (`matcher.go`)
-- [ ] Integrate with sync engine
+- [x] Integrate with sync engine
 
 **Source**: `specs/api-specification.md` - File Exclusion API
 
