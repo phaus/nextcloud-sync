@@ -186,28 +186,19 @@ func (c *WebDAVClient) doRequest(req *http.Request) (*http.Response, error) {
 func (c *WebDAVClient) ListDirectory(ctx context.Context, dirPath string) ([]*WebDAVFile, error) {
 	url := c.buildURL(dirPath)
 
+	// Create property request for directory listing
+	propReq := GetStandardPropertyRequest()
+	propReq.SetDepth(DepthOne)
+	propfindBody := propReq.BuildPROPFINDBody()
+
 	req, err := c.createRequest(ctx, "PROPFIND", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create PROPFIND request: %w", err)
 	}
 
-	// Set Depth header for directory listing
-	req.Header.Set("Depth", "1")
+	// Set headers for directory listing
+	req.Header.Set("Depth", DepthOne)
 	req.Header.Set("Content-Type", "application/xml; charset=utf-8")
-
-	// PROPFIND request body
-	propfindBody := `<?xml version="1.0" encoding="utf-8" ?>
-<d:propfind xmlns:d="DAV:">
-  <d:prop>
-    <d:displayname/>
-    <d:getcontentlength/>
-    <d:getlastmodified/>
-    <d:getetag/>
-    <d:getcontenttype/>
-    <d:resourcetype/>
-  </d:prop>
-</d:propfind>`
-
 	req.Body = io.NopCloser(strings.NewReader(propfindBody))
 	req.ContentLength = int64(len(propfindBody))
 
@@ -241,28 +232,19 @@ func (c *WebDAVClient) ListDirectory(ctx context.Context, dirPath string) ([]*We
 func (c *WebDAVClient) GetProperties(ctx context.Context, filePath string) (*WebDAVProperties, error) {
 	url := c.buildURL(filePath)
 
+	// Create property request for single file
+	propReq := GetFilePropertyRequest()
+	propReq.SetDepth(DepthZero)
+	propfindBody := propReq.BuildPROPFINDBody()
+
 	req, err := c.createRequest(ctx, "PROPFIND", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create PROPFIND request: %w", err)
 	}
 
-	// Set Depth header for single file properties
-	req.Header.Set("Depth", "0")
+	// Set headers for single file properties
+	req.Header.Set("Depth", DepthZero)
 	req.Header.Set("Content-Type", "application/xml; charset=utf-8")
-
-	// PROPFIND request body for single file
-	propfindBody := `<?xml version="1.0" encoding="utf-8" ?>
-<d:propfind xmlns:d="DAV:">
-  <d:prop>
-    <d:displayname/>
-    <d:getcontentlength/>
-    <d:getlastmodified/>
-    <d:getetag/>
-    <d:getcontenttype/>
-    <d:resourcetype/>
-  </d:prop>
-</d:propfind>`
-
 	req.Body = io.NopCloser(strings.NewReader(propfindBody))
 	req.ContentLength = int64(len(propfindBody))
 
