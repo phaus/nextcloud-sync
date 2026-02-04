@@ -120,14 +120,14 @@ nextcloud-sync/
 - [x] Define WebDAV client interface (`client.go`)
 - [x] Implement HTTP request builders (`requests.go`)
 - [x] Add response parsing (`responses.go`)
-- [ ] Implement basic PROPFIND operations (`properties.go`)
-- [ ] Add WebDAV error handling (`errors.go`)
+- [x] Implement basic PROPFIND operations (`properties.go`)
+- [x] Add WebDAV error handling (`errors.go`)
 
 **Source**: `specs/api-specification.md` - WebDAV Integration section
 
 #### 2.3 File Exclusion System (`pkg/exclude/`)
-- [ ] Implement gitignore-style pattern parsing (`patterns.go`)
-- [ ] Add pattern matching logic (`matcher.go`)
+- [x] Implement gitignore-style pattern parsing (`patterns.go`)
+- [x] Add pattern matching logic (`matcher.go`)
 - [ ] Integrate with sync engine
 
 **Source**: `specs/api-specification.md` - File Exclusion API
@@ -141,18 +141,18 @@ nextcloud-sync/
 ### Phase 3: Sync Engine Core (Week 5-6)
 
 #### 3.1 File Metadata and Comparison (`internal/sync/`)
-- [ ] Define sync data structures (`types.go`)
-- [ ] Implement file comparison algorithms (`comparison.go`)
-- [ ] Add change detection logic
-- [ ] Implement conflict detection
+- [x] Define sync data structures (`types.go`)
+- [x] Implement file comparison algorithms (`comparison.go`)
+- [x] Add change detection logic
+- [x] Implement conflict detection
 
 **Source**: `specs/api-specification.md` - Change Detection API
 
 #### 3.2 Basic Sync Operations (`internal/sync/`)
-- [ ] Implement file upload operations (`operations.go`)
-- [ ] Add file download operations
-- [ ] Implement directory creation/deletion
-- [ ] Add operation planning and execution
+- [x] Implement file upload operations (`operations.go`)
+- [x] Add file download operations
+- [x] Implement directory creation/deletion
+- [x] Add operation planning and execution
 
 **Source**: `specs/architecture.md` - Sync Engine component
 

@@ -286,3 +286,21 @@ func (c Change) String() string {
 
 	return typeStr + " " + dirStr + " " + c.Reason
 }
+
+// String returns a string representation of the ChangeType
+func (ct ChangeType) String() string {
+	switch ct {
+	case ChangeNone:
+		return "NONE"
+	case ChangeCreate:
+		return "CREATE"
+	case ChangeUpdate:
+		return "UPDATE"
+	case ChangeDelete:
+		return "DELETE"
+	case ChangeMove:
+		return "MOVE"
+	default:
+		return "UNKNOWN"
+	}
+}
