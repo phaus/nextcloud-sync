@@ -164,19 +164,13 @@ func (c *WebDAVClient) createRequest(ctx context.Context, method, url string, bo
 func (c *WebDAVClient) doRequest(req *http.Request) (*http.Response, error) {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to execute request: %w", err)
+		return nil, WrapHTTPError(err, req.URL.Path, req.Method)
 	}
 
-	// Check for authentication errors
-	if resp.StatusCode == http.StatusUnauthorized {
-		resp.Body.Close()
-		return nil, fmt.Errorf("authentication failed: invalid credentials")
-	}
-
-	// Check for other HTTP errors
+	// Check for HTTP errors and convert to WebDAV errors
 	if resp.StatusCode >= 400 {
 		resp.Body.Close()
-		return nil, fmt.Errorf("HTTP error: %d %s", resp.StatusCode, resp.Status)
+		return nil, NewWebDAVError(resp.StatusCode, req.URL.Path, req.Method)
 	}
 
 	return resp, nil
@@ -313,7 +307,7 @@ func (c *WebDAVClient) UploadFile(ctx context.Context, filePath string, content 
 
 	// Check for successful upload
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected upload status: %d", resp.StatusCode)
+		return NewWebDAVError(resp.StatusCode, filePath, "PUT")
 	}
 
 	return nil
@@ -336,7 +330,7 @@ func (c *WebDAVClient) CreateDirectory(ctx context.Context, dirPath string) erro
 
 	// Check for successful creation
 	if resp.StatusCode != http.StatusCreated {
-		return fmt.Errorf("unexpected directory creation status: %d", resp.StatusCode)
+		return NewWebDAVError(resp.StatusCode, dirPath, "MKCOL")
 	}
 
 	return nil
@@ -359,7 +353,7 @@ func (c *WebDAVClient) DeleteFile(ctx context.Context, filePath string) error {
 
 	// Check for successful deletion
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("unexpected delete status: %d", resp.StatusCode)
+		return NewWebDAVError(resp.StatusCode, filePath, "DELETE")
 	}
 
 	return nil
@@ -387,7 +381,7 @@ func (c *WebDAVClient) MoveFile(ctx context.Context, source, destination string)
 
 	// Check for successful move
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("unexpected move status: %d", resp.StatusCode)
+		return NewWebDAVError(resp.StatusCode, source, "MOVE")
 	}
 
 	return nil
@@ -415,7 +409,7 @@ func (c *WebDAVClient) CopyFile(ctx context.Context, source, destination string)
 
 	// Check for successful copy
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusNoContent {
-		return fmt.Errorf("unexpected copy status: %d", resp.StatusCode)
+		return NewWebDAVError(resp.StatusCode, source, "COPY")
 	}
 
 	return nil
