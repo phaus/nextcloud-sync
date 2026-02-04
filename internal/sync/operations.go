@@ -56,7 +56,7 @@ func (e *OperationExecutor) ExecuteOperation(op *SyncOperation) error {
 		if op.Direction == LocalToRemote {
 			return e.deleteLocalFile(op.SourcePath)
 		} else if op.Direction == RemoteToLocal {
-			return e.deleteRemoteFile(op.SourcePath)
+			return e.deleteRemoteFile(op.TargetPath)
 		} else {
 			return fmt.Errorf("unsupported direction for delete operation: %v", op.Direction)
 		}

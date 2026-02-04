@@ -237,7 +237,7 @@ func TestSyncEngine_BuildRemoteFileTree(t *testing.T) {
 		LastModified: now,
 	})
 
-	mockClient.AddFile("/test", &webdav.WebDAVFile{
+	mockClient.AddFile("/test/documents.txt", &webdav.WebDAVFile{
 		Name:         "documents.txt",
 		IsDirectory:  false,
 		Size:         1024,
@@ -245,7 +245,7 @@ func TestSyncEngine_BuildRemoteFileTree(t *testing.T) {
 		ETag:         "\"test123\"",
 	})
 
-	mockClient.AddFile("/test", &webdav.WebDAVFile{
+	mockClient.AddFile("/test/temp.tmp", &webdav.WebDAVFile{
 		Name:         "temp.tmp",
 		IsDirectory:  false,
 		Size:         512,
