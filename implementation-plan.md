@@ -86,10 +86,10 @@ nextcloud-sync/
 **Source**: `specs/deployment.md` - Build System Requirements
 
 #### 1.2 Configuration Management (`internal/config/`)
-- [ ] Define configuration structures (`types.go`)
-- [ ] Implement config file loading (`config.go`)
-- [ ] Add configuration validation (`validation.go`)
-- [ ] Implement password encryption (`encryption.go`)
+- [x] Define configuration structures (`types.go`)
+- [x] Implement config file loading (`config.go`)
+- [x] Add configuration validation (`validation.go`)
+- [x] Implement password encryption (`encryption.go`)
 
 **Source**: `specs/api-specification.md` - Configuration API section
 
