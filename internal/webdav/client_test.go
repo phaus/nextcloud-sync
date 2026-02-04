@@ -2,9 +2,15 @@ package webdav
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/phaus/nextcloud-sync/internal/auth"
+	"github.com/phaus/nextcloud-sync/internal/utils"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // mockAuthProvider implements auth.AuthProvider for testing
@@ -220,4 +226,224 @@ func contains(s, substr string) bool {
 				}
 				return false
 			})())
+}
+
+func TestSetRetryConfig(t *testing.T) {
+	authProvider := &mockAuthProvider{
+		serverURL: "https://cloud.example.com",
+		username:  "testuser",
+		password:  "testpass",
+	}
+
+	client, err := NewClient(authProvider)
+	require.NoError(t, err)
+	defer client.Close()
+
+	// Test that default retry config is set
+	assert.NotNil(t, client.retryConfig)
+	assert.Equal(t, 3, client.retryConfig.MaxRetries)
+
+	// Test setting custom retry config
+	customConfig := &utils.RetryConfig{
+		MaxRetries:          5,
+		InitialDelay:        2 * time.Second,
+		MaxDelay:            60 * time.Second,
+		Multiplier:          3.0,
+		RandomizationFactor: 0.2,
+	}
+
+	client.SetRetryConfig(customConfig)
+	assert.Equal(t, customConfig, client.retryConfig)
+}
+
+func TestRetryWithTemporaryError(t *testing.T) {
+	// Create a test server that returns temporary errors initially, then success
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+
+		if attempts <= 2 {
+			// Return temporary error for first 2 attempts
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			return
+		}
+
+		// Success on third attempt
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	authProvider := &mockAuthProvider{
+		serverURL: server.URL,
+		username:  "testuser",
+		password:  "testpass",
+	}
+
+	client, err := NewClient(authProvider)
+	require.NoError(t, err)
+	defer client.Close()
+
+	// Set short retry config for test
+	retryConfig := &utils.RetryConfig{
+		MaxRetries:          5,
+		InitialDelay:        10 * time.Millisecond,
+		MaxDelay:            100 * time.Millisecond,
+		Multiplier:          2.0,
+		RandomizationFactor: 0.0,
+	}
+	client.SetRetryConfig(retryConfig)
+
+	// Create a simple request to test retry logic
+	req, err := http.NewRequestWithContext(context.Background(), "GET", server.URL, nil)
+	require.NoError(t, err)
+
+	resp, err := client.doRequest(req)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, 3, attempts, "Should have made 3 attempts (2 failures + 1 success)")
+
+	if resp != nil {
+		resp.Body.Close()
+	}
+}
+
+func TestRetryWithNonRetryableError(t *testing.T) {
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		// Return non-retryable error (404)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	authProvider := &mockAuthProvider{
+		serverURL: server.URL,
+		username:  "testuser",
+		password:  "testpass",
+	}
+
+	client, err := NewClient(authProvider)
+	require.NoError(t, err)
+	defer client.Close()
+
+	// Set short retry config for test
+	retryConfig := &utils.RetryConfig{
+		MaxRetries:          5,
+		InitialDelay:        10 * time.Millisecond,
+		MaxDelay:            100 * time.Millisecond,
+		Multiplier:          2.0,
+		RandomizationFactor: 0.0,
+	}
+	client.SetRetryConfig(retryConfig)
+
+	req, err := http.NewRequestWithContext(context.Background(), "GET", server.URL, nil)
+	require.NoError(t, err)
+
+	resp, err := client.doRequest(req)
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Equal(t, 1, attempts, "Should have made only 1 attempt for non-retryable error")
+
+	// Check that it's a WebDAV error
+	webdavErr, isWebDAV := IsWebDAVError(err)
+	if isWebDAV {
+		assert.Equal(t, http.StatusNotFound, webdavErr.StatusCode)
+	} else {
+		// If it's not a WebDAV error, it should still be an error we can handle
+		assert.Error(t, err, "Should have some kind of error")
+	}
+}
+
+func TestRetryMaxAttemptsExceeded(t *testing.T) {
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		// Always return temporary error
+		w.Header().Set("Retry-After", "1")
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	authProvider := &mockAuthProvider{
+		serverURL: server.URL,
+		username:  "testuser",
+		password:  "testpass",
+	}
+
+	client, err := NewClient(authProvider)
+	require.NoError(t, err)
+	defer client.Close()
+
+	// Set short retry config for test
+	retryConfig := &utils.RetryConfig{
+		MaxRetries:          2,
+		InitialDelay:        10 * time.Millisecond,
+		MaxDelay:            100 * time.Millisecond,
+		Multiplier:          2.0,
+		RandomizationFactor: 0.0,
+	}
+	client.SetRetryConfig(retryConfig)
+
+	req, err := http.NewRequestWithContext(context.Background(), "GET", server.URL, nil)
+	require.NoError(t, err)
+
+	start := time.Now()
+	resp, err := client.doRequest(req)
+	elapsed := time.Since(start)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Equal(t, 3, attempts, "Should have made maxRetries + 1 attempts")
+	assert.GreaterOrEqual(t, elapsed, 30*time.Millisecond, "Should have waited for retries")
+
+	// Check that the error message contains max retries exceeded
+	assert.Contains(t, err.Error(), "max retries")
+}
+
+func TestRetryWithContextCancellation(t *testing.T) {
+	attempts := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		// Always return temporary error
+		w.Header().Set("Retry-After", "1")
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer server.Close()
+
+	authProvider := &mockAuthProvider{
+		serverURL: server.URL,
+		username:  "testuser",
+		password:  "testpass",
+	}
+
+	client, err := NewClient(authProvider)
+	require.NoError(t, err)
+	defer client.Close()
+
+	// Create a context that will be cancelled quickly
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	// Set longer retry config to ensure context cancellation happens first
+	retryConfig := &utils.RetryConfig{
+		MaxRetries:          10,
+		InitialDelay:        100 * time.Millisecond,
+		MaxDelay:            1 * time.Second,
+		Multiplier:          2.0,
+		RandomizationFactor: 0.0,
+	}
+	client.SetRetryConfig(retryConfig)
+
+	req, err := http.NewRequestWithContext(ctx, "GET", server.URL, nil)
+	require.NoError(t, err)
+
+	start := time.Now()
+	resp, err := client.doRequest(req)
+	elapsed := time.Since(start)
+
+	assert.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "context cancelled")
+	assert.Less(t, elapsed, 200*time.Millisecond, "Should return quickly due to context cancellation")
 }

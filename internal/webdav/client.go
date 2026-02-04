@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/phaus/nextcloud-sync/internal/auth"
+	"github.com/phaus/nextcloud-sync/internal/utils"
 )
 
 // WebDAVFile represents a file or directory on the WebDAV server
@@ -72,10 +73,16 @@ type Client interface {
 
 // WebDAVClient implements the Client interface
 type WebDAVClient struct {
-	auth       auth.AuthProvider
-	baseURL    string
-	userAgent  string
-	httpClient *http.Client
+	auth        auth.AuthProvider
+	baseURL     string
+	userAgent   string
+	httpClient  *http.Client
+	retryConfig *utils.RetryConfig
+}
+
+// SetRetryConfig sets custom retry configuration
+func (c *WebDAVClient) SetRetryConfig(config *utils.RetryConfig) {
+	c.retryConfig = config
 }
 
 // NewClient creates a new WebDAV client
@@ -106,10 +113,11 @@ func NewClient(authProvider auth.AuthProvider) (*WebDAVClient, error) {
 	}
 
 	return &WebDAVClient{
-		auth:       authProvider,
-		baseURL:    webdavURL,
-		userAgent:  "nextcloud-sync/1.0",
-		httpClient: client,
+		auth:        authProvider,
+		baseURL:     webdavURL,
+		userAgent:   "nextcloud-sync/1.0",
+		httpClient:  client,
+		retryConfig: utils.DefaultRetryConfig(),
 	}, nil
 }
 
@@ -167,8 +175,38 @@ func (c *WebDAVClient) createRequest(ctx context.Context, method, url string, bo
 	return req, nil
 }
 
-// doRequest executes an HTTP request and handles common errors
+// doRequest executes an HTTP request and handles common errors with retry logic
 func (c *WebDAVClient) doRequest(req *http.Request) (*http.Response, error) {
+	var resp *http.Response
+
+	// Use retry logic for the request
+	err := utils.RetryWithBackoff(req.Context(), c.retryConfig, utils.IsTemporaryWebDAVError, func() error {
+		var err error
+		resp, err = c.httpClient.Do(req)
+		if err != nil {
+			return WrapHTTPError(err, req.URL.Path, req.Method)
+		}
+
+		// Check for HTTP errors and convert to WebDAV errors
+		if resp.StatusCode >= 400 {
+			// Don't consume the body on error as it might be needed by caller
+			webdavErr := NewWebDAVError(resp.StatusCode, req.URL.Path, req.Method)
+			resp.Body.Close()
+			return webdavErr
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+// doRequestWithoutRetry executes an HTTP request without retry logic (for internal use)
+func (c *WebDAVClient) doRequestWithoutRetry(req *http.Request) (*http.Response, error) {
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, WrapHTTPError(err, req.URL.Path, req.Method)
