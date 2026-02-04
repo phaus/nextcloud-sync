@@ -157,9 +157,9 @@ nextcloud-sync/
 **Source**: `specs/architecture.md` - Sync Engine component
 
 #### 3.3 Conflict Resolution (`internal/sync/`)
-- [ ] Implement source-wins conflict resolution (`conflict.go`)
-- [ ] Add conflict logging and reporting
-- [ ] Handle edge cases and error scenarios
+- [x] Implement source-wins conflict resolution (`conflict.go`)
+- [x] Add conflict logging and reporting
+- [x] Handle edge cases and error scenarios
 
 **Source**: User requirement for "Source wins conflict resolution"
 
