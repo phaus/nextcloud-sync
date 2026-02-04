@@ -273,6 +273,7 @@ func TestConfigLoad(t *testing.T) {
 - Follow the WebDAV API specification in `specs/api-specification.md`
 - Use proper HTTP status codes and error handling
 - Implement proper retry logic with exponential backoff
+- Use URL utilities in `internal/utils/url.go` for Nextcloud URL parsing and validation
 
 ### Authentication
 - Use app passwords only, never store in plaintext
