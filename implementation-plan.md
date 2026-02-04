@@ -179,10 +179,10 @@ nextcloud-sync/
 **Source**: User requirement for "Bidirectional sync"
 
 #### 4.2 Progress Tracking (`internal/progress/`)
-- [ ] Implement progress bar display (`progress.go`)
-- [ ] Add sync statistics tracking (`statistics.go`)
-- [ ] Implement transfer resume capability (`resume.go`)
-- [ ] Add ETA calculation
+- [x] Implement progress bar display (`progress.go`)
+- [x] Add sync statistics tracking (`statistics.go`)
+- [x] Implement transfer resume capability (`resume.go`)
+- [x] Add ETA calculation
 
 **Source**: User requirement for "Progress bars + resume capability"
 
