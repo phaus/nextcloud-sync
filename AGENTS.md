@@ -8,15 +8,15 @@ This file provides guidelines and commands for agentic coding agents working on 
 ```bash
 # Build the main binary
 make build
-# or: go build -ldflags "-X main.version=dev" -o bin/agent cmd/sync/main.go
+# or: go build -ldflags "-X main.version=dev" -o bin/agent cmd/sync/*.go
 
 # Cross-platform builds
 make build-all
 # or:
-GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=dev" -o bin/agent-linux-amd64 cmd/sync/main.go
-GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=dev" -o bin/agent-darwin-amd64 cmd/sync/main.go
-GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=dev" -o bin/agent-darwin-arm64 cmd/sync/main.go
-GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=dev" -o bin/agent-windows-amd64.exe cmd/sync/main.go
+GOOS=linux GOARCH=amd64 go build -ldflags "-X main.version=dev" -o bin/agent-linux-amd64 cmd/sync/*.go
+GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.version=dev" -o bin/agent-darwin-amd64 cmd/sync/*.go
+GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.version=dev" -o bin/agent-darwin-arm64 cmd/sync/*.go
+GOOS=windows GOARCH=amd64 go build -ldflags "-X main.version=dev" -o bin/agent-windows-amd64.exe cmd/sync/*.go
 ```
 
 ### Testing
@@ -282,5 +282,12 @@ func TestConfigLoad(t *testing.T) {
 - Use the testing strategy outlined in `specs/testing.md`
 - Mock Nextcloud endpoints for unit tests
 - Use real Nextcloud instances for integration testing
+
+### WebDAV Error Handling
+- All WebDAV operations now return structured WebDAVError types
+- Use `IsWebDAVError(err)` to check if error is a WebDAVError
+- Use type-specific methods: `IsAuthError()`, `IsNotFoundError()`, `IsConflictError()`, etc.
+- Use `IsTemporary()` to determine if operation should be retried
+- Errors include context: path, method, status code, and descriptive message
 
 When working on this project, always reference the specifications in `specs/` and the `implementation-plan.md` for detailed requirements and architecture decisions.
