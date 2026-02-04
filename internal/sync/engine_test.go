@@ -60,6 +60,14 @@ func (m *MockWebDAVClient) UploadFile(ctx context.Context, path string, reader i
 	return nil
 }
 
+func (m *MockWebDAVClient) UploadFileChunked(ctx context.Context, path string, content io.Reader, size int64, chunkSize int64) error {
+	return nil
+}
+
+func (m *MockWebDAVClient) ResumeChunkedUpload(ctx context.Context, path string, content io.Reader, size int64, offset int64, chunkSize int64) error {
+	return nil
+}
+
 func (m *MockWebDAVClient) CreateDirectory(ctx context.Context, path string) error {
 	return nil
 }

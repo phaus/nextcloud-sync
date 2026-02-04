@@ -101,16 +101,42 @@ func (e *OperationExecutor) uploadFile(localPath, remotePath string) error {
 		}
 	}
 
-	// Upload file with progress tracking
-	progressReader := &progressReader{
-		reader:    file,
-		tracker:   e.config.ProgressTracker,
-		totalSize: fileInfo.Size(),
+	// Determine if we should use chunked upload
+	chunkSize := e.config.ChunkSize
+	if chunkSize <= 0 {
+		chunkSize = 1024 * 1024 // Default to 1MB
 	}
 
-	err = e.webdavClient.UploadFile(e.ctx, remotePath, progressReader, fileInfo.Size())
-	if err != nil {
-		return fmt.Errorf("failed to upload file to %s: %w", remotePath, err)
+	largeFileThreshold := e.config.LargeFileThreshold
+	if largeFileThreshold <= 0 {
+		largeFileThreshold = 50 * 1024 * 1024 // Default to 50MB
+	}
+
+	// Upload file with appropriate method
+	if fileInfo.Size() > largeFileThreshold {
+		// Use chunked upload for large files
+		progressReader := &progressReader{
+			reader:    file,
+			tracker:   e.config.ProgressTracker,
+			totalSize: fileInfo.Size(),
+		}
+
+		err = e.webdavClient.UploadFileChunked(e.ctx, remotePath, progressReader, fileInfo.Size(), chunkSize)
+		if err != nil {
+			return fmt.Errorf("failed to upload file (chunked) to %s: %w", remotePath, err)
+		}
+	} else {
+		// Use regular upload for smaller files
+		progressReader := &progressReader{
+			reader:    file,
+			tracker:   e.config.ProgressTracker,
+			totalSize: fileInfo.Size(),
+		}
+
+		err = e.webdavClient.UploadFile(e.ctx, remotePath, progressReader, fileInfo.Size())
+		if err != nil {
+			return fmt.Errorf("failed to upload file to %s: %w", remotePath, err)
+		}
 	}
 
 	// Finish progress tracking

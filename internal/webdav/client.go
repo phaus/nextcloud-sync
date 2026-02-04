@@ -1,6 +1,7 @@
 package webdav
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -46,6 +47,12 @@ type Client interface {
 
 	// UploadFile uploads a file to the server
 	UploadFile(ctx context.Context, path string, content io.Reader, size int64) error
+
+	// UploadFileChunked uploads a file in chunks for large files
+	UploadFileChunked(ctx context.Context, path string, content io.Reader, size int64, chunkSize int64) error
+
+	// ResumeChunkedUpload resumes a chunked upload from a specific offset
+	ResumeChunkedUpload(ctx context.Context, path string, content io.Reader, size int64, offset int64, chunkSize int64) error
 
 	// CreateDirectory creates a new directory
 	CreateDirectory(ctx context.Context, path string) error
@@ -308,6 +315,161 @@ func (c *WebDAVClient) UploadFile(ctx context.Context, filePath string, content 
 	// Check for successful upload
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		return NewWebDAVError(resp.StatusCode, filePath, "PUT")
+	}
+
+	return nil
+}
+
+// UploadFileChunked implements Client.UploadFileChunked
+func (c *WebDAVClient) UploadFileChunked(ctx context.Context, filePath string, content io.Reader, size int64, chunkSize int64) error {
+	// Validate inputs
+	if chunkSize <= 0 {
+		chunkSize = 1024 * 1024 // Default to 1MB
+	}
+
+	// For small files, use regular upload
+	if size <= chunkSize {
+		return c.UploadFile(ctx, filePath, content, size)
+	}
+
+	// Create a buffered reader for chunking
+	buffer := make([]byte, chunkSize)
+	var offset int64 = 0
+
+	for offset < size {
+		// Read a chunk
+		bytesRead, err := io.ReadFull(content, buffer)
+		if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+			return fmt.Errorf("failed to read chunk at offset %d: %w", offset, err)
+		}
+
+		// Handle last chunk which might be smaller
+		chunkData := buffer[:bytesRead]
+		if bytesRead == 0 {
+			break
+		}
+
+		// Upload this chunk
+		err = c.uploadChunk(ctx, filePath, chunkData, offset, size)
+		if err != nil {
+			return fmt.Errorf("failed to upload chunk at offset %d: %w", offset, err)
+		}
+
+		offset += int64(bytesRead)
+
+		// If we read less than requested, we're done
+		if int64(bytesRead) < chunkSize {
+			break
+		}
+	}
+
+	return nil
+}
+
+// ResumeChunkedUpload implements Client.ResumeChunkedUpload
+func (c *WebDAVClient) ResumeChunkedUpload(ctx context.Context, filePath string, content io.Reader, size int64, offset int64, chunkSize int64) error {
+	// Validate inputs
+	if chunkSize <= 0 {
+		chunkSize = 1024 * 1024 // Default to 1MB
+	}
+
+	// Seek to the resume position if the content supports seeking
+	if seeker, ok := content.(io.Seeker); ok {
+		_, err := seeker.Seek(offset, io.SeekStart)
+		if err != nil {
+			return fmt.Errorf("failed to seek to offset %d: %w", offset, err)
+		}
+	} else if offset > 0 {
+		// If we can't seek, we need to read and discard bytes to get to the offset
+		discarded := int64(0)
+		buffer := make([]byte, 4096)
+		for discarded < offset {
+			toRead := int64(len(buffer))
+			if discarded+toRead > offset {
+				toRead = offset - discarded
+			}
+
+			bytesRead, err := io.ReadFull(content, buffer[:toRead])
+			if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+				return fmt.Errorf("failed to skip to offset %d: %w", offset, err)
+			}
+
+			discarded += int64(bytesRead)
+			if int64(bytesRead) < toRead {
+				break // EOF reached
+			}
+		}
+	}
+
+	// Continue upload from the offset
+	buffer := make([]byte, chunkSize)
+	currentOffset := offset
+
+	for currentOffset < size {
+		// Read a chunk
+		bytesRead, err := io.ReadFull(content, buffer)
+		if err != nil && err != io.EOF && err != io.ErrUnexpectedEOF {
+			return fmt.Errorf("failed to read chunk at offset %d: %w", currentOffset, err)
+		}
+
+		// Handle last chunk which might be smaller
+		chunkData := buffer[:bytesRead]
+		if bytesRead == 0 {
+			break
+		}
+
+		// Upload this chunk
+		err = c.uploadChunk(ctx, filePath, chunkData, currentOffset, size)
+		if err != nil {
+			return fmt.Errorf("failed to upload chunk at offset %d: %w", currentOffset, err)
+		}
+
+		currentOffset += int64(bytesRead)
+
+		// If we read less than requested, we're done
+		if int64(bytesRead) < chunkSize {
+			break
+		}
+	}
+
+	return nil
+}
+
+// uploadChunk uploads a single chunk using Content-Range header
+func (c *WebDAVClient) uploadChunk(ctx context.Context, filePath string, chunkData []byte, offset, totalSize int64) error {
+	url := c.buildURL(filePath)
+
+	// Create a reader for the chunk data
+	chunkReader := bytes.NewReader(chunkData)
+
+	// Create the request
+	req, err := c.createRequest(ctx, "PUT", url, chunkReader)
+	if err != nil {
+		return fmt.Errorf("failed to create PUT request for chunk: %w", err)
+	}
+
+	// Set Content-Length for this chunk
+	req.ContentLength = int64(len(chunkData))
+
+	// Set Content-Range header for chunked upload
+	endRange := offset + int64(len(chunkData)) - 1
+	req.Header.Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", offset, endRange, totalSize))
+
+	// For the first chunk, don't send Content-Range to create the file
+	if offset == 0 {
+		req.Header.Del("Content-Range")
+	}
+
+	resp, err := c.doRequest(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute chunk PUT request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Check response status
+	// For chunked uploads, we accept 200 (OK) or 201 (Created) or 206 (Partial Content)
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusPartialContent {
+		return NewWebDAVError(resp.StatusCode, filePath, "PUT (chunk)")
 	}
 
 	return nil

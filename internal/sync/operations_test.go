@@ -69,6 +69,36 @@ func (m *mockWebDAVClient) UploadFile(ctx context.Context, path string, content 
 	return nil
 }
 
+func (m *mockWebDAVClient) UploadFileChunked(ctx context.Context, path string, content io.Reader, size int64, chunkSize int64) error {
+	// For mock purposes, just read all content and store it
+	data, err := io.ReadAll(content)
+	if err != nil {
+		return err
+	}
+
+	m.files[path] = &mockFile{
+		content: data,
+		modTime: time.Now(),
+		isDir:   false,
+	}
+	return nil
+}
+
+func (m *mockWebDAVClient) ResumeChunkedUpload(ctx context.Context, path string, content io.Reader, size int64, offset int64, chunkSize int64) error {
+	// For mock purposes, just read all content and store it
+	data, err := io.ReadAll(content)
+	if err != nil {
+		return err
+	}
+
+	m.files[path] = &mockFile{
+		content: data,
+		modTime: time.Now(),
+		isDir:   false,
+	}
+	return nil
+}
+
 func (m *mockWebDAVClient) CreateDirectory(ctx context.Context, path string) error {
 	m.directories[path] = true
 	m.files[path] = &mockFile{

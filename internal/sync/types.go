@@ -92,18 +92,19 @@ const (
 
 // SyncConfig represents the configuration for a sync operation
 type SyncConfig struct {
-	Source          string          `json:"source"`
-	Target          string          `json:"target"`
-	Direction       SyncDirection   `json:"direction"`
-	Bidirectional   bool            `json:"bidirectional"` // Convenience field for bidirectional sync
-	DryRun          bool            `json:"dry_run"`
-	Force           bool            `json:"force"`
-	ExcludePatterns []string        `json:"exclude_patterns,omitempty"`
-	MaxRetries      int             `json:"max_retries"`
-	Timeout         time.Duration   `json:"timeout"`
-	ChunkSize       int64           `json:"chunk_size"`
-	ConflictPolicy  string          `json:"conflict_policy"` // "source_wins", "target_wins", "skip"
-	ProgressTracker ProgressTracker `json:"-"`
+	Source             string          `json:"source"`
+	Target             string          `json:"target"`
+	Direction          SyncDirection   `json:"direction"`
+	Bidirectional      bool            `json:"bidirectional"` // Convenience field for bidirectional sync
+	DryRun             bool            `json:"dry_run"`
+	Force              bool            `json:"force"`
+	ExcludePatterns    []string        `json:"exclude_patterns,omitempty"`
+	MaxRetries         int             `json:"max_retries"`
+	Timeout            time.Duration   `json:"timeout"`
+	ChunkSize          int64           `json:"chunk_size"`
+	LargeFileThreshold int64           `json:"large_file_threshold"` // Files larger than this will use chunked upload
+	ConflictPolicy     string          `json:"conflict_policy"`      // "source_wins", "target_wins", "skip"
+	ProgressTracker    ProgressTracker `json:"-"`
 }
 
 // ProgressTracker interface for tracking sync progress
