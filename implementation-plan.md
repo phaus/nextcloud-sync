@@ -117,7 +117,7 @@ nextcloud-sync/
 **Source**: `specs/security.md` - Credential Security section
 
 #### 2.2 WebDAV Client Foundation (`internal/webdav/`)
-- [ ] Define WebDAV client interface (`client.go`)
+- [x] Define WebDAV client interface (`client.go`)
 - [ ] Implement HTTP request builders (`requests.go`)
 - [ ] Add response parsing (`responses.go`)
 - [ ] Implement basic PROPFIND operations (`properties.go`)
