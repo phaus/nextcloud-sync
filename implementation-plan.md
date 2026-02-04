@@ -187,8 +187,8 @@ nextcloud-sync/
 **Source**: User requirement for "Progress bars + resume capability"
 
 #### 4.3 Large File Handling
-- [ ] Implement chunked uploads for large files
-- [ ] Add resume capability for interrupted transfers
+- [x] Implement chunked uploads for large files
+- [x] Add resume capability for interrupted transfers
 - [ ] Optimize memory usage for large files
 - [ ] Add timeout and retry logic
 

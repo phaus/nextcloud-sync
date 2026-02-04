@@ -338,9 +338,10 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - ✅ **Basic Sync Operations**: Complete file upload, download, directory operations with progress tracking
 - ✅ **Conflict Resolution System**: Source-wins conflict resolution with comprehensive logging and reporting
 - ✅ **Progress Tracking System**: Real-time progress bars, statistics, and transfer resume capability
+- ✅ **Chunked Upload Support**: Large file upload with chunked transfer and resume capability (50MB+ threshold)
 
 ### Current Status
-The basic sync operations are now implemented with file upload/download, directory management, and operation planning. Next phases include bidirectional synchronization and conflict resolution.
+The basic sync operations are now implemented with file upload/download, directory management, and operation planning. Large file support with chunked uploads has been implemented to handle files efficiently. Next phases include performance optimization and advanced error handling.
 
 ## Changelog
 
