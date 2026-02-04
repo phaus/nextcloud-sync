@@ -94,10 +94,10 @@ nextcloud-sync/
 **Source**: `specs/api-specification.md` - Configuration API section
 
 #### 1.3 Basic CLI Framework (`cmd/sync/`)
-- [ ] Create main.go with basic structure
-- [ ] Implement command-line argument parsing
-- [ ] Add help and version commands
-- [ ] Set up logging infrastructure
+- [x] Create main.go with basic structure
+- [x] Implement command-line argument parsing
+- [x] Add help and version commands
+- [x] Set up logging infrastructure
 
 **Source**: `specs/api-specification.md` - CLI Command API
 
@@ -109,10 +109,10 @@ nextcloud-sync/
 ### Phase 2: Core Infrastructure (Week 3-4)
 
 #### 2.1 Authentication System (`internal/auth/`)
-- [ ] Define authentication interface (`auth.go`)
-- [ ] Implement app password handling (`app_password.go`)
-- [ ] Add credential validation (`validator.go`)
-- [ ] Integrate with configuration management
+- [x] Define authentication interface (`auth.go`)
+- [x] Implement app password handling (`app_password.go`)
+- [x] Add credential validation (`validator.go`)
+- [x] Integrate with configuration management
 
 **Source**: `specs/security.md` - Credential Security section
 
