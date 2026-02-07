@@ -233,6 +233,11 @@ func IsForce() bool {
 	return *force
 }
 
+// IsBidirectional returns whether bidirectional sync is enabled
+func IsBidirectional() bool {
+	return *bidirectional
+}
+
 // GetExcludePatterns returns the exclude patterns
 func GetExcludePatterns() []string {
 	return []string(excludePatterns)

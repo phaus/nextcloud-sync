@@ -43,6 +43,7 @@ var commands = []Command{
 var (
 	dryRun           = flag.Bool("dry-run", false, "Show what would be synced without making changes")
 	force            = flag.Bool("force", false, "Force overwrite conflicting files")
+	bidirectional    = flag.Bool("bidirectional", false, "Enable bidirectional synchronization")
 	excludePatterns  = multiFlag{}
 	profile          = flag.String("profile", "", "Use predefined sync profile")
 	verbose          = flag.Bool("verbose", false, "Detailed logging output")
@@ -122,9 +123,21 @@ func handleSync(args []string) error {
 	source := args[0]
 	target := args[1]
 
+	// Determine sync direction
+	direction := sync.SyncDirectionLocalToRemote
+	if *bidirectional {
+		direction = sync.SyncDirectionBidirectional
+	} else if strings.Contains(source, "://") && !strings.Contains(target, "://") {
+		direction = sync.SyncDirectionRemoteToLocal
+	} else if strings.Contains(source, "://") && strings.Contains(target, "://") {
+		return fmt.Errorf("both source and target cannot be remote URLs")
+	}
+
 	if *verbose {
 		fmt.Printf("Source: %s\n", source)
 		fmt.Printf("Target: %s\n", target)
+		fmt.Printf("Direction: %s\n", getDirectionName(direction))
+		fmt.Printf("Bidirectional: %t\n", *bidirectional)
 		fmt.Printf("Dry run: %t\n", *dryRun)
 		fmt.Printf("Force: %t\n", *force)
 		if len(excludePatterns) > 0 {
@@ -133,14 +146,6 @@ func handleSync(args []string) error {
 		if *profile != "" {
 			fmt.Printf("Profile: %s\n", *profile)
 		}
-	}
-
-	// Determine sync direction
-	direction := sync.SyncDirectionLocalToRemote
-	if strings.Contains(source, "://") && !strings.Contains(target, "://") {
-		direction = sync.SyncDirectionRemoteToLocal
-	} else if strings.Contains(source, "://") && strings.Contains(target, "://") {
-		return fmt.Errorf("both source and target cannot be remote URLs")
 	}
 
 	// Load configuration
@@ -165,6 +170,7 @@ func handleSync(args []string) error {
 		Source:          source,
 		Target:          target,
 		Direction:       direction,
+		Bidirectional:   *bidirectional,
 		DryRun:          *dryRun,
 		Force:           *force,
 		ExcludePatterns: []string(excludePatterns),
@@ -355,7 +361,200 @@ func handleUpdateCheck(args []string) error {
 }
 
 func handleConfigTest() error {
-	fmt.Println("Configuration test not yet implemented")
+	fmt.Println("🔧 Configuration Test")
+	fmt.Println("====================")
+	fmt.Println()
+
+	// Get config path
+	configPath := *configPath
+	if configPath == "" {
+		configPath = getDefaultConfigPath()
+	}
+
+	fmt.Printf("Testing configuration at: %s\n", configPath)
+	fmt.Println()
+
+	// Check if config file exists
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		fmt.Printf("❌ Configuration file not found: %s\n", configPath)
+		fmt.Println("   Run 'agent setup' to create a configuration file.")
+		return fmt.Errorf("configuration file not found")
+	}
+
+	// Load and validate configuration
+	appConfig, err := config.LoadConfig(configPath)
+	if err != nil {
+		fmt.Printf("❌ Failed to load configuration: %v\n", err)
+		return fmt.Errorf("failed to load configuration: %w", err)
+	}
+
+	fmt.Println("✅ Configuration file loaded and validated successfully")
+	fmt.Printf("   Version: %s\n", appConfig.Version)
+	fmt.Printf("   Servers: %d\n", len(appConfig.Servers))
+	fmt.Printf("   Sync profiles: %d\n", len(appConfig.SyncProfiles))
+	fmt.Println()
+
+	// Test servers if any are configured
+	if len(appConfig.Servers) > 0 {
+		fmt.Println("📡 Testing Server Configuration")
+		fmt.Println("-------------------------------")
+
+		for name, server := range appConfig.Servers {
+			fmt.Printf("Testing server '%s':\n", name)
+
+			// Test URL format
+			if err := config.ValidateServerURL(server.URL); err != nil {
+				fmt.Printf("   ❌ URL validation failed: %v\n", err)
+				continue
+			}
+			fmt.Printf("   ✅ URL: %s\n", server.URL)
+
+			// Test username format
+			if err := config.ValidateUsername(server.Username); err != nil {
+				fmt.Printf("   ❌ Username validation failed: %v\n", err)
+				continue
+			}
+			fmt.Printf("   ✅ Username: %s\n", server.Username)
+
+			// Test password decryption
+			password, err := config.DecryptPassword(server.AppPassword)
+			if err != nil {
+				fmt.Printf("   ❌ Password decryption failed: %v\n", err)
+				continue
+			}
+			fmt.Printf("   ✅ App password decrypted successfully\n")
+
+			// Test authentication (optional connectivity test)
+			authProvider, err := auth.NewAppPasswordAuth(server.URL, server.Username, password)
+			if err != nil {
+				fmt.Printf("   ⚠️  Could not create auth provider: %v\n", err)
+			} else {
+				// Validate credentials
+				if err := authProvider.ValidateCredentials(context.Background()); err != nil {
+					fmt.Printf("   ❌ Credential validation failed: %v\n", err)
+				} else {
+					fmt.Printf("   ✅ Credentials validated successfully\n")
+				}
+			}
+
+			// Clear password from memory
+			password = ""
+			fmt.Println()
+		}
+	}
+
+	// Test sync profiles if any are configured
+	if len(appConfig.SyncProfiles) > 0 {
+		fmt.Println("📁 Testing Sync Profile Configuration")
+		fmt.Println("------------------------------------")
+
+		for name, profile := range appConfig.SyncProfiles {
+			fmt.Printf("Testing profile '%s':\n", name)
+
+			// Test source path
+			if profile.Source == "" {
+				fmt.Printf("   ❌ Source path cannot be empty\n")
+				continue
+			}
+			fmt.Printf("   ✅ Source: %s\n", profile.Source)
+
+			// Test target path
+			if profile.Target == "" {
+				fmt.Printf("   ❌ Target path cannot be empty\n")
+				continue
+			}
+			fmt.Printf("   ✅ Target: %s\n", profile.Target)
+
+			// Test exclude patterns
+			if len(profile.ExcludePatterns) > 0 {
+				fmt.Printf("   ✅ Exclude patterns: %d\n", len(profile.ExcludePatterns))
+				for _, pattern := range profile.ExcludePatterns {
+					if err := config.ValidateExcludePattern(pattern); err != nil {
+						fmt.Printf("      ⚠️  Invalid pattern '%s': %v\n", pattern, err)
+					}
+				}
+			}
+
+			// Test Nextcloud URL format if target is a URL
+			if strings.Contains(profile.Target, "://") {
+				if err := config.ValidateNextcloudURL(profile.Target); err != nil {
+					fmt.Printf("   ❌ Nextcloud URL validation failed: %v\n", err)
+				} else {
+					fmt.Printf("   ✅ Nextcloud URL format is valid\n")
+				}
+			}
+
+			fmt.Println()
+		}
+	}
+
+	// Test global settings
+	if appConfig.GlobalSettings.MaxRetries > 0 ||
+		appConfig.GlobalSettings.TimeoutSeconds > 0 ||
+		appConfig.GlobalSettings.ChunkSizeMB > 0 {
+		fmt.Println("⚙️  Testing Global Settings")
+		fmt.Println("-------------------------")
+
+		if err := config.ValidateGlobalSettings(appConfig.GlobalSettings); err != nil {
+			fmt.Printf("❌ Global settings validation failed: %v\n", err)
+		} else {
+			fmt.Println("✅ Global settings are valid")
+			if appConfig.GlobalSettings.MaxRetries > 0 {
+				fmt.Printf("   Max retries: %d\n", appConfig.GlobalSettings.MaxRetries)
+			}
+			if appConfig.GlobalSettings.TimeoutSeconds > 0 {
+				fmt.Printf("   Timeout: %ds\n", appConfig.GlobalSettings.TimeoutSeconds)
+			}
+			if appConfig.GlobalSettings.ChunkSizeMB > 0 {
+				fmt.Printf("   Chunk size: %dMB\n", appConfig.GlobalSettings.ChunkSizeMB)
+			}
+		}
+		fmt.Println()
+	}
+
+	// Test file permissions
+	if stat, err := os.Stat(configPath); err == nil {
+		fmt.Println("🔒 Testing Security Settings")
+		fmt.Println("---------------------------")
+
+		// Check file permissions (should be 0600 or similar)
+		if runtime.GOOS != "windows" {
+			perms := stat.Mode().Perm()
+			if perms&0177 == 0 { // Only owner has permissions
+				fmt.Printf("✅ File permissions are secure: %v\n", perms)
+			} else {
+				fmt.Printf("⚠️  File permissions may be too permissive: %v\n", perms)
+				fmt.Println("   Consider setting permissions to 600 (owner read/write only)")
+			}
+		}
+
+		// Check that file is not world-readable
+		if stat.Mode().Perm()&0004 == 0 {
+			fmt.Println("✅ Configuration file is not world-readable")
+		} else {
+			fmt.Println("⚠️  Configuration file is world-readable")
+			fmt.Println("   Consider setting permissions to 600 (owner read/write only)")
+		}
+		fmt.Println()
+	}
+
+	fmt.Println("🎉 Configuration Test Complete!")
+	fmt.Println("================================")
+
+	// Summary
+	issues := 0
+	if len(appConfig.Servers) == 0 && len(appConfig.SyncProfiles) == 0 {
+		fmt.Println("⚠️  Configuration is empty - run 'agent setup' to configure servers and profiles")
+		issues++
+	} else {
+		fmt.Println("✅ Configuration appears to be valid and ready for use")
+	}
+
+	if issues > 0 {
+		fmt.Printf("\n⚠️  Found %d issue(s) that may need attention\n", issues)
+		return fmt.Errorf("configuration test found %d issue(s)", issues)
+	}
+
 	return nil
 }
 
@@ -757,4 +956,18 @@ func formatBytes(bytes int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(bytes)/float64(div), "KMGTPE"[exp])
+}
+
+// getDirectionName returns a human-readable name for sync direction
+func getDirectionName(direction sync.SyncDirection) string {
+	switch direction {
+	case sync.SyncDirectionLocalToRemote:
+		return "local to remote"
+	case sync.SyncDirectionRemoteToLocal:
+		return "remote to local"
+	case sync.SyncDirectionBidirectional:
+		return "bidirectional"
+	default:
+		return "unknown"
+	}
 }

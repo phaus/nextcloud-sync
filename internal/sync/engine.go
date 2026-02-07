@@ -346,7 +346,7 @@ func (se *SyncEngine) performBidirectionalSync(ctx context.Context, localTree, r
 	result.EndTime = time.Now()
 	result.Duration = result.EndTime.Sub(startTime)
 	result.DryRun = se.config.DryRun
-	result.Bidirectional = false
+	result.Bidirectional = true
 
 	return result, nil
 }
@@ -381,7 +381,7 @@ func (se *SyncEngine) performUnidirectionalSync(ctx context.Context, localTree, 
 			EndTime:       time.Now(),
 			Duration:      0,
 			DryRun:        true,
-			Bidirectional: true,
+			Bidirectional: false,
 		}, nil
 	}
 
