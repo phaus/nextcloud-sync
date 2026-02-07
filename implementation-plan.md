@@ -175,6 +175,7 @@ nextcloud-sync/
 - [x] Implement bidirectional sync logic (`engine.go`)
 - [x] Add change direction detection
 - [x] Handle merge scenarios
+- [x] Add CLI flag support for bidirectional sync
 - [ ] Optimize for minimal data transfer
 
 **Source**: User requirement for "Bidirectional sync"
@@ -384,7 +385,7 @@ nextcloud-sync/
 ### Functional Requirements
 - [ ] Successfully sync local to Nextcloud
 - [ ] Successfully sync Nextcloud to local
-- [ ] Bidirectional sync with conflict resolution
+- [x] Bidirectional sync with conflict resolution
 - [ ] Progress tracking for large files
 - [ ] Resume capability for interrupted transfers
 - [ ] File exclusion patterns work correctly

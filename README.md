@@ -106,6 +106,9 @@ agent ~/Projects https://cloud.example.com/apps/files/files/12345?dir=/Projects
 # Dry run to see what would be synced
 agent --dry-run ~/Documents https://cloud.example.com/apps/files/files/12345?dir=/Documents
 
+# Bidirectional sync (sync changes both ways)
+agent --bidirectional ~/Documents https://cloud.example.com/apps/files/files/12345?dir=/Documents
+
 # Exclude certain patterns
 agent --exclude="*.tmp" --exclude=".DS_Store" ~/Documents https://cloud.example.com/...
 
@@ -176,6 +179,7 @@ agent <source> <target> [options]
 - `target`: Target path (local folder or Nextcloud URL)
 
 #### Options
+- `--bidirectional`: Enable bidirectional synchronization
 - `--dry-run`: Show what would be synced without making changes
 - `--force`: Force overwrite conflicting files
 - `--exclude=PATTERN`: Additional exclude patterns
@@ -342,6 +346,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - ✅ **Chunked Upload Support**: Large file upload with chunked transfer and resume capability (50MB+ threshold)
 - ✅ **Retry Logic with Exponential Backoff**: Robust retry mechanism for temporary network errors with configurable parameters
 - ✅ **URL Utilities**: Centralized URL parsing and validation for Nextcloud integration with WebDAV endpoint extraction
+- ✅ **Bidirectional Sync CLI Support**: Complete CLI flag support for bidirectional synchronization with proper result flag handling
 - ✅ **Test Suite Fixes**: Resolved failing tests in sync package, corrected mock implementations and delete operation logic
 
 ### Current Status
